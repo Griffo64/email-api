@@ -1,9 +1,9 @@
-// api/send-email.js
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export default async function handler(req, res) {
+  // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -16,10 +16,23 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  const { email, nome, url } = req.body;
+  const { email, nome, url, tipo } = req.body;
 
-  if (!email || !nome || !url) {
+  if (!email || !nome || !url || !tipo) {
     return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  // Personalização dinâmica por tipo
+  let subject = 'Confirme seu acesso';
+  let title = 'Grupo exclusivo, conforto garantido,<br />experiências inesquecíveis';
+  let buttonText = 'Confirmar Acesso';
+  let messageIntro = 'Para seguir com seu acesso à plataforma exclusiva da DaniNegro Viagens e Turismo, clique no botão abaixo:';
+
+  if (tipo === 'redefinicao') {
+    subject = 'Redefina sua senha';
+    title = 'Redefinição de senha';
+    buttonText = 'Redefinir Senha';
+    messageIntro = 'Clique no botão abaixo para redefinir sua senha de acesso à plataforma DaniNegro:';
   }
 
   const htmlContent = `
@@ -28,7 +41,7 @@ export default async function handler(req, res) {
       <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Confirme seu acesso</title>
+        <title>${subject}</title>
         <style>
           body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
@@ -81,12 +94,12 @@ export default async function handler(req, res) {
       <body>
         <div class="container">
           <img class="logo" src="https://daninegro.tur.br/DNLogoEmail.png" alt="DaniNegro Viagens e Turismo" />
-          <h2 class="title">Grupo exclusivo, conforto garantido,<br />experiências inesquecíveis</h2>
+          <h2 class="title">${title}</h2>
           <div class="message">
             <p>Olá <strong>${nome}</strong>,</p>
-            <p>Para seguir com seu acesso à plataforma exclusiva da DaniNegro Viagens e Turismo, clique no botão abaixo:</p>
+            <p>${messageIntro}</p>
             <p style="text-align: center; margin-top: 32px;">
-              <a href="${url}" class="cta-button">Confirmar Acesso</a>
+              <a href="${url}" class="cta-button">${buttonText}</a>
             </p>
             <p style="margin-top: 32px;">Se não foi você quem solicitou, apenas ignore este e-mail.</p>
           </div>
@@ -103,12 +116,13 @@ export default async function handler(req, res) {
     const data = await resend.emails.send({
       from: 'DaniNegro <noreply@daninegro.tur.br>',
       to: email,
-      subject: 'Confirme seu acesso',
+      subject,
       html: htmlContent,
     });
 
     return res.status(200).json({ message: 'E-mail enviado com sucesso.', data });
   } catch (error) {
+    console.error('Erro ao enviar e-mail:', error);
     return res.status(500).json({ message: 'Erro ao enviar e-mail', error });
   }
 }
